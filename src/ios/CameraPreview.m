@@ -70,9 +70,18 @@
     self.sessionManager.delegate = self.cameraRenderController;
 
     [self.sessionManager setupSession:defaultCamera completion:^(BOOL started) {
-
-      [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
-
+      if (started) {
+        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
+      }
+      else {
+        [self.cameraRenderController.view removeFromSuperview];
+        [self.cameraRenderController removeFromParentViewController];
+        
+        self.cameraRenderController = nil;
+        self.sessionManager = nil;
+        
+        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR] callbackId:command.callbackId];
+      }
     }];
 
   } else {

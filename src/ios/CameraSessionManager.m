@@ -90,67 +90,73 @@
 }
 
 - (void) setupSession:(NSString *)defaultCamera completion:(void(^)(BOOL started))completion{
-  // If this fails, video input will just stream blank frames and the user will be notified. User only has to accept once.
-  [self checkDeviceAuthorizationStatus];
+  NSString *mediaType = AVMediaTypeVideo;
 
-  dispatch_async(self.sessionQueue, ^{
-      NSError *error = nil;
-      BOOL success = TRUE;
+  [AVCaptureDevice requestAccessForMediaType:mediaType completionHandler:^(BOOL granted) {
+    if (!granted) {
+      completion(FALSE);
+    }
+    else {
+      dispatch_async(self.sessionQueue, ^{
+          NSError *error = nil;
+          BOOL success = TRUE;
 
-      NSLog(@"defaultCamera: %@", defaultCamera);
-      if ([defaultCamera isEqual: @"front"]) {
-        self.defaultCamera = AVCaptureDevicePositionFront;
-      } else {
-        self.defaultCamera = AVCaptureDevicePositionBack;
-      }
+          NSLog(@"defaultCamera: %@", defaultCamera);
+          if ([defaultCamera isEqual: @"front"]) {
+            self.defaultCamera = AVCaptureDevicePositionFront;
+          } else {
+            self.defaultCamera = AVCaptureDevicePositionBack;
+          }
 
-      AVCaptureDevice * videoDevice = [self cameraWithPosition: self.defaultCamera];
+          AVCaptureDevice * videoDevice = [self cameraWithPosition: self.defaultCamera];
 
-      if ([videoDevice hasFlash] && [videoDevice isFlashModeSupported:AVCaptureFlashModeAuto]) {
-        if ([videoDevice lockForConfiguration:&error]) {
-          [videoDevice setFlashMode:AVCaptureFlashModeAuto];
-          [videoDevice unlockForConfiguration];
-        } else {
-          NSLog(@"%@", error);
-          success = FALSE;
-        }
-      }
+          if ([videoDevice hasFlash] && [videoDevice isFlashModeSupported:AVCaptureFlashModeAuto]) {
+            if ([videoDevice lockForConfiguration:&error]) {
+              [videoDevice setFlashMode:AVCaptureFlashModeAuto];
+              [videoDevice unlockForConfiguration];
+            } else {
+              NSLog(@"%@", error);
+              success = FALSE;
+            }
+          }
 
-      AVCaptureDeviceInput *videoDeviceInput = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error:&error];
+          AVCaptureDeviceInput *videoDeviceInput = [AVCaptureDeviceInput deviceInputWithDevice:videoDevice error:&error];
 
-      if (error) {
-        NSLog(@"%@", error);
-        success = FALSE;
-      }
+          if (error) {
+            NSLog(@"%@", error);
+            success = FALSE;
+          }
 
-      if ([self.session canAddInput:videoDeviceInput]) {
-        [self.session addInput:videoDeviceInput];
-        self.videoDeviceInput = videoDeviceInput;
-      }
+          if ([self.session canAddInput:videoDeviceInput]) {
+            [self.session addInput:videoDeviceInput];
+            self.videoDeviceInput = videoDeviceInput;
+          }
 
-      AVCaptureStillImageOutput *stillImageOutput = [[AVCaptureStillImageOutput alloc] init];
-      if ([self.session canAddOutput:stillImageOutput]) {
-        [self.session addOutput:stillImageOutput];
-        [stillImageOutput setOutputSettings:@{AVVideoCodecKey : AVVideoCodecJPEG}];
-        self.stillImageOutput = stillImageOutput;
-      }
+          AVCaptureStillImageOutput *stillImageOutput = [[AVCaptureStillImageOutput alloc] init];
+          if ([self.session canAddOutput:stillImageOutput]) {
+            [self.session addOutput:stillImageOutput];
+            [stillImageOutput setOutputSettings:@{AVVideoCodecKey : AVVideoCodecJPEG}];
+            self.stillImageOutput = stillImageOutput;
+          }
 
-      AVCaptureVideoDataOutput *dataOutput = [[AVCaptureVideoDataOutput alloc] init];
-      if ([self.session canAddOutput:dataOutput]) {
-        self.dataOutput = dataOutput;
-        [dataOutput setAlwaysDiscardsLateVideoFrames:YES];
-        [dataOutput setVideoSettings:[NSDictionary dictionaryWithObject:[NSNumber numberWithInt:kCVPixelFormatType_32BGRA] forKey:(id)kCVPixelBufferPixelFormatTypeKey]];
+          AVCaptureVideoDataOutput *dataOutput = [[AVCaptureVideoDataOutput alloc] init];
+          if ([self.session canAddOutput:dataOutput]) {
+            self.dataOutput = dataOutput;
+            [dataOutput setAlwaysDiscardsLateVideoFrames:YES];
+            [dataOutput setVideoSettings:[NSDictionary dictionaryWithObject:[NSNumber numberWithInt:kCVPixelFormatType_32BGRA] forKey:(id)kCVPixelBufferPixelFormatTypeKey]];
 
-        [dataOutput setSampleBufferDelegate:self.delegate queue:self.sessionQueue];
+            [dataOutput setSampleBufferDelegate:self.delegate queue:self.sessionQueue];
 
-        [self.session addOutput:dataOutput];
-      }
+            [self.session addOutput:dataOutput];
+          }
 
-      [self updateOrientation:[self getCurrentOrientation]];
-      self.device = videoDevice;
+          [self updateOrientation:[self getCurrentOrientation]];
+          self.device = videoDevice;
 
-      completion(success);
-  });
+          completion(success);
+      });
+    }
+  }];
 }
 
 - (void) updateOrientation:(AVCaptureVideoOrientation)orientation {
@@ -418,7 +424,7 @@
     [exposureModes addObject:@"auto"];
   };
   if ([videoDevice isExposureModeSupported:2]) {
-    [exposureModes addObject:@"continuous"];
+    [exposureModes addObject:@"cotinuous"];
   };
   if ([videoDevice isExposureModeSupported:3]) {
     [exposureModes addObject:@"custom"];
@@ -691,23 +697,6 @@
   }
 
   [self.device unlockForConfiguration];
-}
-
-- (void)checkDeviceAuthorizationStatus {
-  NSString *mediaType = AVMediaTypeVideo;
-
-  [AVCaptureDevice requestAccessForMediaType:mediaType completionHandler:^(BOOL granted) {
-    if (!granted) {
-      //Not granted access to mediaType
-      dispatch_async(dispatch_get_main_queue(), ^{
-          [[[UIAlertView alloc] initWithTitle:@"Error"
-                                      message:@"Camera permission not found. Please, check your privacy settings."
-                                     delegate:self
-                            cancelButtonTitle:@"OK"
-                            otherButtonTitles:nil] show];
-      });
-    }
-  }];
 }
 
 // Find a camera with the specified AVCaptureDevicePosition, returning nil if one is not found
