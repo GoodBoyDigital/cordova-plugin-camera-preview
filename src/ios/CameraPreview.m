@@ -80,7 +80,7 @@
         self.cameraRenderController = nil;
         self.sessionManager = nil;
         
-        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR] callbackId:command.callbackId];
+        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Illegal access"] callbackId:command.callbackId];
       }
     }];
 
